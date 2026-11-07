@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Header } from './components/Header';
 import { PresetBar } from './components/PresetBar';
+import { ScenarioPlayer } from './components/ScenarioPlayer';
 import { TrafficVisualizer } from './components/TrafficVisualizer';
+import { TrafficInspector, FrameRecord } from './components/TrafficInspector';
 import { ProxyCard } from './components/ProxyCard';
 import { ToxicModal } from './components/ToxicModal';
 import { NewProxyModal } from './components/NewProxyModal';
@@ -23,6 +25,8 @@ import { Network, Search } from 'lucide-react';
 export const App: React.FC = () => {
   const [proxies, setProxies] = useState<Record<string, Proxy>>({});
   const [presets, setPresets] = useState<Preset[]>([]);
+  const [frames, setFrames] = useState<FrameRecord[]>([]);
+  const [seqStatus, setSeqStatus] = useState<any>({ running: false });
   const [connected, setConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isResetting, setIsResetting] = useState(false);
@@ -74,18 +78,27 @@ export const App: React.FC = () => {
       es.onmessage = (event) => {
         try {
           const payload: TelemetryPayload = JSON.parse(event.data);
-          if (payload && payload.proxies) {
-            setProxies((prev) => {
-              const updated = { ...prev };
-              payload.proxies.forEach((p) => {
-                updated[p.name] = {
-                  ...p,
-                  stats: p.stats,
-                  toxics: p.toxics || [],
-                };
+          if (payload) {
+            if (payload.sequence_status) {
+              setSeqStatus(payload.sequence_status);
+            }
+            if (payload.recent_frames) {
+              setFrames(payload.recent_frames as any);
+            }
+            if (payload.proxies) {
+              setProxies((prev) => {
+                const updated = { ...prev };
+                payload.proxies.forEach((p) => {
+                  updated[p.name] = {
+                    ...p,
+                    stats: p.stats,
+                    target_health: p.target_health,
+                    toxics: p.toxics || [],
+                  };
+                });
+                return updated;
               });
-              return updated;
-            });
+            }
           }
         } catch (e) {
           console.error('SSE JSON parse error:', e);
@@ -250,6 +263,37 @@ export const App: React.FC = () => {
         totalFaults={totalFaults}
         onReset={handleResetAll}
         onNewProxy={() => setIsNewProxyOpen(true)}
+        onExport={async () => {
+          try {
+            const res = await fetch('/api/v1/config/export');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `faultcraft-config-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast('Configuration exported');
+          } catch (err: any) {
+            showToast(err.message, 'error');
+          }
+        }}
+        onImport={async (file: File) => {
+          try {
+            const text = await file.text();
+            const res = await fetch('/api/v1/config/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: text,
+            });
+            if (!res.ok) throw new Error('Failed importing configuration file');
+            const summary = await res.json();
+            await loadInitialData();
+            showToast(`Restored ${summary.imported_proxies || 0} proxies and ${summary.imported_toxics || 0} toxics`);
+          } catch (err: any) {
+            showToast(err.message, 'error');
+          }
+        }}
         isResetting={isResetting}
       />
 
@@ -262,8 +306,28 @@ export const App: React.FC = () => {
           onApplyPreset={handleApplyPreset}
         />
 
+        {/* Incident Timeline Scenario Player */}
+        <ScenarioPlayer
+          proxies={proxyList}
+          status={seqStatus}
+          onRefresh={loadInitialData}
+        />
+
         {/* Live Traffic Visualizer */}
         {proxyList.length > 0 && <TrafficVisualizer proxies={proxyList} />}
+
+        {/* Live L7 Traffic Frame Inspector */}
+        <TrafficInspector
+          frames={frames}
+          onClear={async () => {
+            try {
+              await fetch('/api/v1/inspector', { method: 'DELETE' });
+              setFrames([]);
+            } catch (e) {
+              // Ignore
+            }
+          }}
+        />
 
         {/* Filter / Search Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">

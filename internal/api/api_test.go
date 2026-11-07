@@ -108,4 +108,38 @@ func TestAPIRoutes(t *testing.T) {
 	if w.Code != http.StatusNoContent {
 		t.Errorf("expected 204 No Content from DELETE /proxies/test_pg, got %d", w.Code)
 	}
+
+	// 9. Config Export & Import
+	// Create another proxy to export
+	createBody2 := []byte(`{"name":"export_pg","listen":"127.0.0.1:0","upstream":"` + ln.Addr().String() + `"}`)
+	req = httptest.NewRequest(http.MethodPost, "/proxies", bytes.NewReader(createBody2))
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Export
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/config/export", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK from config export, got %d", w.Code)
+	}
+	exportData := w.Body.Bytes()
+
+	// Clear proxies
+	mgr.Clear()
+	if len(mgr.List()) != 0 {
+		t.Fatalf("expected 0 proxies after clear")
+	}
+
+	// Import
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/config/import", bytes.NewReader(exportData))
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK from config import, got %d", w.Code)
+	}
+
+	if len(mgr.List()) != 1 {
+		t.Errorf("expected 1 restored proxy, got %d", len(mgr.List()))
+	}
 }

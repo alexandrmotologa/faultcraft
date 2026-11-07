@@ -12,7 +12,7 @@ import (
 func TestToxicRegistry(t *testing.T) {
 	types := []string{
 		"latency", "bandwidth", "slicer", "timeout",
-		"hang", "reset_peer", "limit_data", "http_error", "corrupt",
+		"hang", "reset_peer", "limit_data", "http_error", "corrupt", "circuit_breaker_probe",
 	}
 
 	for _, tt := range types {
@@ -40,7 +40,7 @@ func TestLatencyToxic(t *testing.T) {
 	defer client.Close()
 	defer server.Close()
 
-	link := NewLink(client, server, Downstream, stats)
+	link := NewLink("test_proxy", client, server, Downstream, stats)
 	defer link.Close()
 
 	in := make(chan *Chunk, 1)
@@ -76,7 +76,7 @@ func TestBandwidthToxic(t *testing.T) {
 	defer client.Close()
 	defer server.Close()
 
-	link := NewLink(client, server, Downstream, stats)
+	link := NewLink("test_proxy", client, server, Downstream, stats)
 	defer link.Close()
 
 	in := make(chan *Chunk, 1)
@@ -115,7 +115,7 @@ func TestSlicerToxic(t *testing.T) {
 	defer client.Close()
 	defer server.Close()
 
-	link := NewLink(client, server, Downstream, stats)
+	link := NewLink("test_proxy", client, server, Downstream, stats)
 	defer link.Close()
 
 	in := make(chan *Chunk, 1)
@@ -153,7 +153,7 @@ func TestHTTPErrorToxic(t *testing.T) {
 	defer client.Close()
 	defer server.Close()
 
-	link := NewLink(client, server, Downstream, stats)
+	link := NewLink("test_proxy", client, server, Downstream, stats)
 	defer link.Close()
 
 	in := make(chan *Chunk, 1)
@@ -191,7 +191,7 @@ func TestLimitDataToxic(t *testing.T) {
 	defer client.Close()
 	defer server.Close()
 
-	link := NewLink(client, server, Downstream, stats)
+	link := NewLink("test_proxy", client, server, Downstream, stats)
 	defer link.Close()
 
 	in := make(chan *Chunk, 1)
@@ -212,6 +212,57 @@ func TestLimitDataToxic(t *testing.T) {
 	}
 }
 
+func TestCircuitBreakerToxic(t *testing.T) {
+	cb, err := Create("test_cb", "circuit_breaker_probe", Downstream, 1.0, map[string]interface{}{
+		"trip_after_errors": 2,
+		"cooldown_ms":       50,
+		"probe_successes":   1,
+		"status_code":       503,
+	})
+	if err != nil {
+		t.Fatalf("failed creating circuit_breaker_probe toxic: %v", err)
+	}
+
+	stats := telemetry.NewStats()
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	link := NewLink("test_proxy", client, server, Downstream, stats)
+	defer link.Close()
+
+	in := make(chan *Chunk, 5)
+	out := make(chan *Chunk, 5)
+
+	go cb.Pipe(link, in, out)
+
+	rawHTTP := []byte("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK")
+
+	// 1st request -> should fail with 503
+	in <- &Chunk{Data: rawHTTP, Timestamp: time.Now()}
+	c1 := <-out
+	if !bytes.Contains(c1.Data, []byte("503 Service Unavailable")) {
+		t.Errorf("expected 1st request to fail with 503, got: %s", string(c1.Data))
+	}
+
+	// 2nd request -> should fail with 503 (tripping the breaker to Open)
+	in <- &Chunk{Data: rawHTTP, Timestamp: time.Now()}
+	c2 := <-out
+	if !bytes.Contains(c2.Data, []byte("503 Service Unavailable")) {
+		t.Errorf("expected 2nd request to fail with 503, got: %s", string(c2.Data))
+	}
+
+	// Wait for cooldown to transition Open -> HalfOpen
+	time.Sleep(70 * time.Millisecond)
+
+	// 3rd request -> probe request in HalfOpen, should pass through with 200 OK
+	in <- &Chunk{Data: rawHTTP, Timestamp: time.Now()}
+	c3 := <-out
+	if !bytes.Contains(c3.Data, []byte("200 OK")) {
+		t.Errorf("expected probe request in half_open to succeed with 200 OK, got: %s", string(c3.Data))
+	}
+}
+
 func TestCorruptToxic(t *testing.T) {
 	corruptToxic, err := Create("test_corrupt", "corrupt", Downstream, 1.0, map[string]interface{}{
 		"byte_index": 2,
@@ -225,7 +276,7 @@ func TestCorruptToxic(t *testing.T) {
 	defer client.Close()
 	defer server.Close()
 
-	link := NewLink(client, server, Downstream, stats)
+	link := NewLink("test_proxy", client, server, Downstream, stats)
 	defer link.Close()
 
 	in := make(chan *Chunk, 1)

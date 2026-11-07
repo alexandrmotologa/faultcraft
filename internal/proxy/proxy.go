@@ -18,6 +18,14 @@ var (
 	ErrToxicExists         = errors.New("toxic already exists with this name")
 )
 
+// TargetHealth describes the real-time reachability of the upstream target service.
+type TargetHealth struct {
+	Status   string  `json:"status"` // "healthy", "degraded", "down", "unknown"
+	RTTMs    float64 `json:"rtt_ms"`
+	Error    string  `json:"error,omitempty"`
+	LastPing int64   `json:"last_ping"`
+}
+
 // Proxy represents a single TCP listener and forwarder with attached fault injection pipelines.
 type Proxy struct {
 	Name     string `json:"name"`
@@ -27,24 +35,29 @@ type Proxy struct {
 
 	Stats *telemetry.Stats `json:"-"`
 
-	mu          sync.RWMutex
-	listener    net.Listener
-	activeConns map[net.Conn]struct{}
-	toxics      map[string]toxics.Toxic
-	stopChan    chan struct{}
-	running     bool
+	mu           sync.RWMutex
+	listener     net.Listener
+	activeConns  map[net.Conn]struct{}
+	toxics       map[string]toxics.Toxic
+	timerCancels map[string]chan struct{}
+	stopChan     chan struct{}
+	running      bool
+
+	healthMu sync.RWMutex
+	health   TargetHealth
 }
 
 // NewProxy creates an unstarted Proxy definition.
 func NewProxy(name, listen, upstream string) *Proxy {
 	return &Proxy{
-		Name:        name,
-		Listen:      listen,
-		Upstream:    upstream,
-		Enabled:     true,
-		Stats:       telemetry.NewStats(),
-		activeConns: make(map[net.Conn]struct{}),
-		toxics:      make(map[string]toxics.Toxic),
+		Name:         name,
+		Listen:       listen,
+		Upstream:     upstream,
+		Enabled:      true,
+		Stats:        telemetry.NewStats(),
+		activeConns:  make(map[net.Conn]struct{}),
+		toxics:       make(map[string]toxics.Toxic),
+		timerCancels: make(map[string]chan struct{}),
 	}
 }
 
@@ -74,6 +87,7 @@ func (p *Proxy) Start() error {
 	p.Listen = ln.Addr().String()
 
 	go p.acceptLoop(ln, p.stopChan)
+	go p.healthProbeLoop(p.stopChan)
 	return nil
 }
 
@@ -119,7 +133,66 @@ func (p *Proxy) SetEnabled(enabled bool) error {
 	return nil
 }
 
-// acceptLoop receives incoming client connections and dispatches forwarding goroutines.
+// healthProbeLoop periodically tests reachability of the upstream target.
+func (p *Proxy) healthProbeLoop(stopChan <-chan struct{}) {
+	// Initial immediate probe
+	p.ProbeTarget()
+
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stopChan:
+			return
+		case <-ticker.C:
+			p.ProbeTarget()
+		}
+	}
+}
+
+// ProbeTarget performs a TCP connect probe to the upstream target and records latency.
+func (p *Proxy) ProbeTarget() TargetHealth {
+	p.mu.RLock()
+	targetAddr := p.Upstream
+	p.mu.RUnlock()
+
+	start := time.Now()
+	conn, err := net.DialTimeout("tcp", targetAddr, 1000*time.Millisecond)
+	rtt := time.Since(start)
+
+	var h TargetHealth
+	h.LastPing = time.Now().Unix()
+
+	if err != nil {
+		h.Status = "down"
+		h.Error = err.Error()
+	} else {
+		_ = conn.Close()
+		h.RTTMs = float64(rtt.Microseconds()) / 1000.0
+		if h.RTTMs > 150.0 {
+			h.Status = "degraded"
+		} else {
+			h.Status = "healthy"
+		}
+	}
+
+	p.healthMu.Lock()
+	p.health = h
+	p.healthMu.Unlock()
+
+	return h
+}
+
+// GetTargetHealth returns the latest upstream target reachability status.
+func (p *Proxy) GetTargetHealth() TargetHealth {
+	p.healthMu.RLock()
+	defer p.healthMu.RUnlock()
+	if p.health.Status == "" {
+		return TargetHealth{Status: "unknown"}
+	}
+	return p.health
+}
 func (p *Proxy) acceptLoop(ln net.Listener, stopChan <-chan struct{}) {
 	for {
 		conn, err := ln.Accept()
@@ -143,6 +216,7 @@ func (p *Proxy) acceptLoop(ln net.Listener, stopChan <-chan struct{}) {
 		p.activeConns[conn] = struct{}{}
 		upToxics := p.getToxicsForStreamLocked(toxics.Upstream)
 		downToxics := p.getToxicsForStreamLocked(toxics.Downstream)
+		proxyName := p.Name
 		upstreamAddr := p.Upstream
 		p.mu.Unlock()
 
@@ -153,7 +227,7 @@ func (p *Proxy) acceptLoop(ln net.Listener, stopChan <-chan struct{}) {
 				p.mu.Unlock()
 			}()
 
-			_ = PipeConnection(c, upstreamAddr, p.Stats, upToxics, downToxics, 5*time.Second)
+			_ = PipeConnection(proxyName, c, upstreamAddr, p.Stats, upToxics, downToxics, 5*time.Second)
 		}(conn)
 	}
 }
@@ -166,6 +240,24 @@ func (p *Proxy) AddToxic(t toxics.Toxic) error {
 	if _, exists := p.toxics[t.Name()]; exists {
 		return ErrToxicExists
 	}
+
+	if t.Duration() > 0 {
+		exp := time.Now().Add(time.Duration(t.Duration()) * time.Millisecond)
+		t.SetExpiresAt(&exp)
+
+		stopTimer := make(chan struct{})
+		p.timerCancels[t.Name()] = stopTimer
+
+		go func(toxicName string, dur time.Duration, cancel <-chan struct{}) {
+			select {
+			case <-time.After(dur):
+				_ = p.RemoveToxic(toxicName)
+			case <-cancel:
+				return
+			}
+		}(t.Name(), time.Duration(t.Duration())*time.Millisecond, stopTimer)
+	}
+
 	p.toxics[t.Name()] = t
 	return nil
 }
@@ -196,6 +288,12 @@ func (p *Proxy) RemoveToxic(name string) error {
 	if _, exists := p.toxics[name]; !exists {
 		return ErrToxicNotFound
 	}
+
+	if cancel, ok := p.timerCancels[name]; ok {
+		close(cancel)
+		delete(p.timerCancels, name)
+	}
+
 	delete(p.toxics, name)
 	return nil
 }
@@ -225,6 +323,11 @@ func (p *Proxy) GetToxics() []toxics.Toxic {
 func (p *Proxy) ResetToxics() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	for name, cancel := range p.timerCancels {
+		close(cancel)
+		delete(p.timerCancels, name)
+	}
 
 	p.toxics = make(map[string]toxics.Toxic)
 }

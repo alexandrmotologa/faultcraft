@@ -120,3 +120,31 @@ The `faultcraft` management daemon serves both Toxiproxy v2-compatible endpoints
 ```
 data: {"type":"metrics","active_connections":14,"bytes_upstream":1048576,"bytes_downstream":8388608,"timestamp":1731000000}
 ```
+
+### L7 Frame Inspector
+* **Endpoint**: `GET /api/v1/inspector`
+* **Response**: `200 OK` (Array of captured and dissected network frames)
+* **Endpoint**: `DELETE /api/v1/inspector`
+* **Response**: `204 No Content`
+
+### Automated Incident Sequences
+* **Endpoint**: `GET /api/v1/sequences`
+* **Response**: `200 OK` (Array of multi-phase chaos sequences)
+* **Endpoint**: `POST /api/v1/sequences/run`
+* **Request**:
+```json
+{
+  "proxy": "postgres_chaos",
+  "sequence_id": "db_failover_drill"
+}
+```
+* **Response**: `200 OK`
+* **Endpoint**: `POST /api/v1/sequences/stop`
+* **Response**: `200 OK`
+
+### Configuration Export & Import
+* **Endpoint**: `GET /api/v1/config/export`
+* **Response**: `200 OK` (Downloadable JSON bundle of all proxies and toxics)
+* **Endpoint**: `POST /api/v1/config/import`
+* **Request**: Configuration bundle JSON
+* **Response**: `200 OK` (`{"status":"imported","imported_proxies":1,"imported_toxics":2}`)

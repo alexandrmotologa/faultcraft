@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Plus, Terminal, Trash2, ShieldAlert, Cpu, Activity, Clock, Database } from 'lucide-react';
+import { ArrowRight, Plus, Terminal, Trash2, ShieldAlert, Cpu, Activity, Clock, Database, Timer } from 'lucide-react';
 import { Proxy, Toxic } from '../types';
 
 interface ProxyCardProps {
@@ -55,6 +55,8 @@ export const ProxyCard: React.FC<ProxyCardProps> = ({
         return `HTTP ${t.attributes.status || 503}`;
       case 'hang':
         return 'Frozen socket';
+      case 'circuit_breaker_probe':
+        return `Trip on ${t.attributes.trip_after_errors || 5} errs, ${t.attributes.cooldown_ms || 3000}ms cool`;
       case 'corrupt':
         return 'Bit-flip corruption';
       default:
@@ -87,8 +89,8 @@ export const ProxyCard: React.FC<ProxyCardProps> = ({
             )}
           </div>
 
-          {/* Network Route */}
-          <div className="flex items-center gap-2 mt-1.5 text-xs font-mono text-slate-400">
+          {/* Network Route & Upstream Target Health */}
+          <div className="flex items-center gap-2 mt-1.5 text-xs font-mono text-slate-400 flex-wrap">
             <span className="text-slate-300 bg-[#182138] px-2 py-0.5 rounded border border-[#232f4c]">
               {proxy.listen}
             </span>
@@ -96,6 +98,26 @@ export const ProxyCard: React.FC<ProxyCardProps> = ({
             <span className="text-slate-300 bg-[#182138] px-2 py-0.5 rounded border border-[#232f4c]">
               {proxy.upstream}
             </span>
+            {proxy.target_health && proxy.target_health.status !== 'unknown' && (
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium ${
+                  proxy.target_health.status === 'healthy'
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                    : proxy.target_health.status === 'degraded'
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                }`}
+                title={proxy.target_health.error || `Target response time: ${proxy.target_health.rtt_ms.toFixed(1)}ms`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  proxy.target_health.status === 'healthy' ? 'bg-emerald-400' :
+                  proxy.target_health.status === 'degraded' ? 'bg-amber-400' : 'bg-rose-400'
+                }`} />
+                {proxy.target_health.status === 'healthy' && `TARGET UP (${proxy.target_health.rtt_ms.toFixed(1)}ms)`}
+                {proxy.target_health.status === 'degraded' && `SLOW (${proxy.target_health.rtt_ms.toFixed(1)}ms)`}
+                {proxy.target_health.status === 'down' && 'TARGET UNREACHABLE'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -238,6 +260,13 @@ export const ProxyCard: React.FC<ProxyCardProps> = ({
                   {toxic.toxicity < 1.0 && (
                     <div className="mt-1 text-[10px] font-mono text-slate-400">
                       Rate: {(toxic.toxicity * 100).toFixed(0)}% probability
+                    </div>
+                  )}
+
+                  {(toxic.duration_ms || toxic.expires_at) && (
+                    <div className="mt-1 flex items-center gap-1 text-[10px] font-mono text-cyan-400">
+                      <Timer className="h-3 w-3 animate-spin text-cyan-400" />
+                      <span>Auto-Heal Active</span>
                     </div>
                   )}
                 </div>

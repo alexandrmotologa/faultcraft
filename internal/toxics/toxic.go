@@ -38,23 +38,25 @@ var BufferPool = sync.Pool{
 
 // Link represents one half-duplex stream between client and upstream target.
 type Link struct {
-	Source net.Conn
-	Target net.Conn
-	Dir    Direction
-	Stats  *telemetry.Stats
+	ProxyName string
+	Source    net.Conn
+	Target    net.Conn
+	Dir       Direction
+	Stats     *telemetry.Stats
 
 	closeOnce sync.Once
 	closed    chan struct{}
 }
 
 // NewLink initializes a Link between two network sockets.
-func NewLink(source, target net.Conn, dir Direction, stats *telemetry.Stats) *Link {
+func NewLink(proxyName string, source, target net.Conn, dir Direction, stats *telemetry.Stats) *Link {
 	return &Link{
-		Source: source,
-		Target: target,
-		Dir:    dir,
-		Stats:  stats,
-		closed: make(chan struct{}),
+		ProxyName: proxyName,
+		Source:    source,
+		Target:    target,
+		Dir:       dir,
+		Stats:     stats,
+		closed:    make(chan struct{}),
 	}
 }
 
@@ -114,15 +116,20 @@ type Toxic interface {
 	SetAttributes(attrs map[string]interface{}) error
 	Pipe(link *Link, in <-chan *Chunk, out chan<- *Chunk)
 	Clone() Toxic
+	Duration() int64
+	ExpiresAt() *time.Time
+	SetExpiresAt(t *time.Time)
 }
 
 // BaseToxic provides shared fields and helper logic across all toxic types.
 type BaseToxic struct {
-	ToxicName string                 `json:"name"`
-	ToxicType string                 `json:"type"`
-	ToxicDir  Direction              `json:"stream"`
-	Prob      float64                `json:"toxicity"`
-	Attrs     map[string]interface{} `json:"attributes"`
+	ToxicName     string                 `json:"name"`
+	ToxicType     string                 `json:"type"`
+	ToxicDir      Direction              `json:"stream"`
+	Prob          float64                `json:"toxicity"`
+	Attrs         map[string]interface{} `json:"attributes"`
+	DurationMs    int64                  `json:"duration_ms,omitempty"`
+	ExpiresAtTime *time.Time             `json:"expires_at,omitempty"`
 }
 
 func (b *BaseToxic) Name() string {
@@ -146,6 +153,18 @@ func (b *BaseToxic) Toxicity() float64 {
 
 func (b *BaseToxic) Attributes() map[string]interface{} {
 	return b.Attrs
+}
+
+func (b *BaseToxic) Duration() int64 {
+	return b.DurationMs
+}
+
+func (b *BaseToxic) ExpiresAt() *time.Time {
+	return b.ExpiresAtTime
+}
+
+func (b *BaseToxic) SetExpiresAt(t *time.Time) {
+	b.ExpiresAtTime = t
 }
 
 // ShouldApply evaluates whether a probabilistic toxic should execute on this cycle.
@@ -192,7 +211,31 @@ func Create(name, toxicType string, dir Direction, toxicity float64, attrs map[s
 	if dir == "" {
 		dir = Downstream
 	}
-	return c(name, dir, toxicity, attrs)
+	t, err := c(name, dir, toxicity, attrs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract duration if specified
+	if dur, ok := attrs["duration"]; ok {
+		if durMs := toInt64(dur); durMs > 0 {
+			if bt, ok := t.(interface{ SetDuration(int64) }); ok {
+				bt.SetDuration(durMs)
+			}
+		}
+	} else if durMs, ok := attrs["duration_ms"]; ok {
+		if ms := toInt64(durMs); ms > 0 {
+			if bt, ok := t.(interface{ SetDuration(int64) }); ok {
+				bt.SetDuration(ms)
+			}
+		}
+	}
+
+	return t, nil
+}
+
+func (b *BaseToxic) SetDuration(d int64) {
+	b.DurationMs = d
 }
 
 // ErrInvalidAttribute indicates malformed configuration parameters.

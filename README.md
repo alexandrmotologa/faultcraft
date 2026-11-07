@@ -19,7 +19,7 @@ Engineers can attach bidirectional fault pipelines ("toxics"), including Gaussia
 * **High-Throughput TCP Proxy**: Asynchronous goroutine-based connection forwarding with zero external runtime dependencies.
 * **Toxiproxy v2 Compatibility**: Drop-in compatible REST API matching Toxiproxy v2 routes and JSON schemas. Official Toxiproxy clients in Go, Python, Ruby, and Node.js work directly.
 * **Directional Toxic Pipeline**: Apply independent fault chains upstream (client to proxy) or downstream (upstream target to client).
-* **Supported Fault Injections**:
+* **Supported Fault Injections (10 Toxics)**:
   * `latency`: Gaussian normal distribution delay with mean, jitter, and correlation factors.
   * `bandwidth`: Token-bucket rate limiter for bandwidth throttling down to specific KB/s rates.
   * `timeout`: Closes sockets after an idle or elapsed duration.
@@ -28,7 +28,13 @@ Engineers can attach bidirectional fault pipelines ("toxics"), including Gaussia
   * `reset_peer`: Aborts connections using TCP RST packets.
   * `limit_data`: Enforces a maximum byte quota per socket before closing.
   * `http_error`: Intercepts HTTP/1.1 responses and probabilistically rewrites them to 500, 502, 503, or 504.
+  * `circuit_breaker_probe`: Simulates an upstream service that trips client circuit breakers then enters cooldown and half-open probing.
   * `corrupt`: Probabilistic payload byte alteration to test parser resilience.
+* **Auto-Heal Timers**: Optional duration on any toxic that automatically removes the fault after specified seconds to prevent forgotten outages.
+* **Upstream Target Health Probing**: Continuous background health monitor testing reachability of upstream databases or APIs and displaying live RTT.
+* **L7 Protocol Dissector & Frame Inspector**: Real-time packet dissector capturing HTTP/1.1 methods/status, Redis RESP commands, and PostgreSQL Simple Queries.
+* **Incident Timeline Player**: Automated phased incident drill runner simulating multi-step failures and recovery with visual countdowns.
+* **Config Export & Import**: One-click JSON backup and restoration of all proxies and active toxics from the web UI or CLI.
 * **Embedded React 19 Matrix**: Interactive web cockpit served directly from the Go binary via `embed.FS` on the management port.
 * **Real-Time Telemetry**: Server-Sent Events (SSE) push stream for live throughput sparklines, active connection counts, and fault trigger counters.
 * **CI/CD Quality Gate**: Command-line test harness runner (`faultcraft gate`) that executes test commands under active chaos profiles and enforces p99 latency and error rate thresholds.

@@ -13,6 +13,7 @@ import (
 // PipeConnection handles bidirectional data streaming between client and upstream,
 // executing any active toxics along each directional stream.
 func PipeConnection(
+	proxyName string,
 	clientConn net.Conn,
 	upstreamAddr string,
 	stats *telemetry.Stats,
@@ -34,8 +35,8 @@ func PipeConnection(
 	stats.ConnOpened()
 	defer stats.ConnClosed()
 
-	upstreamLink := toxics.NewLink(clientConn, upstreamConn, toxics.Upstream, stats)
-	downstreamLink := toxics.NewLink(upstreamConn, clientConn, toxics.Downstream, stats)
+	upstreamLink := toxics.NewLink(proxyName, clientConn, upstreamConn, toxics.Upstream, stats)
+	downstreamLink := toxics.NewLink(proxyName, upstreamConn, clientConn, toxics.Downstream, stats)
 
 	defer upstreamLink.Close()
 	defer downstreamLink.Close()
@@ -154,5 +155,16 @@ func writeLoop(link *toxics.Link, in <-chan *toxics.Chunk) {
 
 		latency := time.Since(chunk.Timestamp)
 		link.Stats.RecordLatency(latency)
+
+		proto, summary := telemetry.DissectProtocol(chunk.Data, string(link.Dir))
+		telemetry.GlobalInspector.RecordFrame(telemetry.FrameRecord{
+			Timestamp: time.Now(),
+			ProxyName: link.ProxyName,
+			Direction: string(link.Dir),
+			Protocol:  proto,
+			Summary:   summary,
+			Bytes:     total,
+			LatencyMs: float64(latency.Microseconds()) / 1000.0,
+		})
 	}
 }

@@ -30,11 +30,13 @@ func (s *Server) handleListToxics(w http.ResponseWriter, r *http.Request) {
 	resp := make([]toxics.BaseToxic, 0, len(toxList))
 	for _, t := range toxList {
 		resp = append(resp, toxics.BaseToxic{
-			ToxicName: t.Name(),
-			ToxicType: t.Type(),
-			ToxicDir:  t.Stream(),
-			Prob:      t.Toxicity(),
-			Attrs:     t.Attributes(),
+			ToxicName:     t.Name(),
+			ToxicType:     t.Type(),
+			ToxicDir:      t.Stream(),
+			Prob:          t.Toxicity(),
+			Attrs:         t.Attributes(),
+			DurationMs:    t.Duration(),
+			ExpiresAtTime: t.ExpiresAt(),
 		})
 	}
 
@@ -81,11 +83,13 @@ func (s *Server) handleCreateToxic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := toxics.BaseToxic{
-		ToxicName: t.Name(),
-		ToxicType: t.Type(),
-		ToxicDir:  t.Stream(),
-		Prob:      t.Toxicity(),
-		Attrs:     t.Attributes(),
+		ToxicName:     t.Name(),
+		ToxicType:     t.Type(),
+		ToxicDir:      t.Stream(),
+		Prob:          t.Toxicity(),
+		Attrs:         t.Attributes(),
+		DurationMs:    t.Duration(),
+		ExpiresAtTime: t.ExpiresAt(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -109,11 +113,13 @@ func (s *Server) handleGetToxic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := toxics.BaseToxic{
-		ToxicName: t.Name(),
-		ToxicType: t.Type(),
-		ToxicDir:  t.Stream(),
-		Prob:      t.Toxicity(),
-		Attrs:     t.Attributes(),
+		ToxicName:     t.Name(),
+		ToxicType:     t.Type(),
+		ToxicDir:      t.Stream(),
+		Prob:          t.Toxicity(),
+		Attrs:         t.Attributes(),
+		DurationMs:    t.Duration(),
+		ExpiresAtTime: t.ExpiresAt(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -146,11 +152,13 @@ func (s *Server) handleUpdateToxic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := toxics.BaseToxic{
-		ToxicName: t.Name(),
-		ToxicType: t.Type(),
-		ToxicDir:  t.Stream(),
-		Prob:      t.Toxicity(),
-		Attrs:     t.Attributes(),
+		ToxicName:     t.Name(),
+		ToxicType:     t.Type(),
+		ToxicDir:      t.Stream(),
+		Prob:          t.Toxicity(),
+		Attrs:         t.Attributes(),
+		DurationMs:    t.Duration(),
+		ExpiresAtTime: t.ExpiresAt(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -41,6 +41,10 @@ func main() {
 		runApply(os.Args[2:])
 	case "reset":
 		runReset(os.Args[2:])
+	case "export":
+		runExport(os.Args[2:])
+	case "import":
+		runImport(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Printf("faultcraft %s (%s)\n", Version, GitCommit)
 	default:
@@ -61,6 +65,8 @@ Commands:
   gate      Execute tests under active chaos and evaluate CI/CD resilience SLOs
   apply     Apply a chaos preset to a running daemon
   reset     Reset all toxics on a running daemon
+  export    Export active proxies and toxics to a JSON configuration bundle
+  import    Import and restore proxies and toxics from a JSON bundle
   version   Display version and build information
 
 Run 'faultcraft <command> --help' for details on each subcommand.`)
@@ -232,4 +238,76 @@ func runReset(args []string) {
 	}
 
 	fmt.Println("✓ All toxics cleared and all proxies re-enabled.")
+}
+
+func runExport(args []string) {
+	fs := flag.NewFlagSet("export", flag.ExitOnError)
+	apiURL := fs.String("api", "http://localhost:8474", "FaultCraft daemon API URL")
+	outputFile := fs.String("output", "", "Output file path (default: stdout)")
+	_ = fs.Parse(args)
+
+	resp, err := http.Get(*apiURL + "/api/v1/config/export")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed connecting to daemon: %v\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "Export failed with status: %s\n", resp.Status)
+		os.Exit(1)
+	}
+
+	var out *os.File = os.Stdout
+	if *outputFile != "" {
+		f, err := os.Create(*outputFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed creating file %s: %v\n", *outputFile, err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		out = f
+	}
+
+	buf := new(bytes.Buffer)
+	_, _ = buf.ReadFrom(resp.Body)
+	_, _ = out.Write(buf.Bytes())
+
+	if *outputFile != "" {
+		fmt.Printf("✓ Exported configuration bundle to %s\n", *outputFile)
+	}
+}
+
+func runImport(args []string) {
+	fs := flag.NewFlagSet("import", flag.ExitOnError)
+	apiURL := fs.String("api", "http://localhost:8474", "FaultCraft daemon API URL")
+	filePath := fs.String("file", "", "Path to JSON configuration bundle file to import")
+	_ = fs.Parse(args)
+
+	if *filePath == "" {
+		fmt.Fprintln(os.Stderr, "Error: --file flag is required")
+		os.Exit(1)
+	}
+
+	data, err := os.ReadFile(*filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed reading file %s: %v\n", *filePath, err)
+		os.Exit(1)
+	}
+
+	resp, err := http.Post(*apiURL+"/api/v1/config/import", "application/json", bytes.NewReader(data))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed connecting to daemon: %v\n", err)
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "Import failed with status: %s\n", resp.Status)
+		os.Exit(1)
+	}
+
+	var res map[string]interface{}
+	_ = json.NewDecoder(resp.Body).Decode(&res)
+	fmt.Printf("✓ Configuration imported: %v proxies, %v toxics restored.\n", res["imported_proxies"], res["imported_toxics"])
 }

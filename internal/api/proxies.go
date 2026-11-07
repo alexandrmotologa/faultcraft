@@ -11,11 +11,12 @@ import (
 
 // ProxyResponse represents the Toxiproxy v2 JSON serialization schema.
 type ProxyResponse struct {
-	Name     string             `json:"name"`
-	Listen   string             `json:"listen"`
-	Upstream string             `json:"upstream"`
-	Enabled  bool               `json:"enabled"`
-	Toxics   []toxics.BaseToxic `json:"toxics"`
+	Name         string             `json:"name"`
+	Listen       string             `json:"listen"`
+	Upstream     string             `json:"upstream"`
+	Enabled      bool               `json:"enabled"`
+	TargetHealth proxy.TargetHealth `json:"target_health"`
+	Toxics       []toxics.BaseToxic `json:"toxics"`
 }
 
 func makeProxyResponse(p *proxy.Proxy) ProxyResponse {
@@ -23,20 +24,23 @@ func makeProxyResponse(p *proxy.Proxy) ProxyResponse {
 	baseToxics := make([]toxics.BaseToxic, 0, len(toxList))
 	for _, t := range toxList {
 		baseToxics = append(baseToxics, toxics.BaseToxic{
-			ToxicName: t.Name(),
-			ToxicType: t.Type(),
-			ToxicDir:  t.Stream(),
-			Prob:      t.Toxicity(),
-			Attrs:     t.Attributes(),
+			ToxicName:     t.Name(),
+			ToxicType:     t.Type(),
+			ToxicDir:      t.Stream(),
+			Prob:          t.Toxicity(),
+			Attrs:         t.Attributes(),
+			DurationMs:    t.Duration(),
+			ExpiresAtTime: t.ExpiresAt(),
 		})
 	}
 
 	return ProxyResponse{
-		Name:     p.Name,
-		Listen:   p.Listen,
-		Upstream: p.Upstream,
-		Enabled:  p.Enabled,
-		Toxics:   baseToxics,
+		Name:         p.Name,
+		Listen:       p.Listen,
+		Upstream:     p.Upstream,
+		Enabled:      p.Enabled,
+		TargetHealth: p.GetTargetHealth(),
+		Toxics:       baseToxics,
 	}
 }
 

@@ -19,6 +19,7 @@ export const ToxicModal: React.FC<ToxicModalProps> = ({ proxy, onClose, onSave }
   const [name, setName] = useState('');
   const [stream, setStream] = useState<StreamDirection>('downstream');
   const [toxicity, setToxicity] = useState(1.0);
+  const [durationSec, setDurationSec] = useState(0); // 0 = persistent
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,9 @@ export const ToxicModal: React.FC<ToxicModalProps> = ({ proxy, onClose, onSave }
   const [httpStatus, setHttpStatus] = useState(503);
   const [httpBody, setHttpBody] = useState('');
   const [corruptIndex, setCorruptIndex] = useState(-1);
+  const [tripErrors, setTripErrors] = useState(5);
+  const [cooldownMs, setCooldownMs] = useState(3000);
+  const [probeSuccesses, setProbeSuccesses] = useState(2);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,11 +71,21 @@ export const ToxicModal: React.FC<ToxicModalProps> = ({ proxy, onClose, onSave }
         attributes.status = Number(httpStatus);
         if (httpBody.trim()) attributes.body = httpBody.trim();
         break;
+      case 'circuit_breaker_probe':
+        attributes.trip_after_errors = Number(tripErrors);
+        attributes.cooldown_ms = Number(cooldownMs);
+        attributes.probe_successes = Number(probeSuccesses);
+        attributes.status_code = Number(httpStatus);
+        break;
       case 'corrupt':
         attributes.byte_index = Number(corruptIndex);
         break;
       case 'hang':
         break;
+    }
+
+    if (durationSec > 0) {
+      attributes.duration = Number(durationSec) * 1000;
     }
 
     try {
@@ -135,6 +149,7 @@ export const ToxicModal: React.FC<ToxicModalProps> = ({ proxy, onClose, onSave }
               <option value="hang">Zombie Socket Hang (Freeze without FIN)</option>
               <option value="reset_peer">TCP Reset (RST abort)</option>
               <option value="limit_data">Data Limit (Quota cutoff)</option>
+              <option value="circuit_breaker_probe">Circuit Breaker Probe (Trip & Half-Open Tester)</option>
               <option value="timeout">Read/Write Timeout</option>
               <option value="corrupt">Bit-Flip Payload Corruption</option>
             </select>
@@ -183,6 +198,28 @@ export const ToxicModal: React.FC<ToxicModalProps> = ({ proxy, onClose, onSave }
               onChange={(e) => setToxicity(parseFloat(e.target.value))}
               className="w-full accent-rose-500 bg-[#182138] h-1.5 rounded-lg appearance-none cursor-pointer"
             />
+          </div>
+
+          {/* Auto-Heal Duration Timer */}
+          <div>
+            <div className="flex justify-between items-center text-xs font-mono mb-1.5">
+              <span className="text-slate-300">Auto-Heal Expiration</span>
+              <span className="text-cyan-400 font-semibold">
+                {durationSec > 0 ? `${durationSec} seconds` : 'Persistent (Never)'}
+              </span>
+            </div>
+            <input
+              type="number"
+              min="0"
+              step="5"
+              placeholder="0 (Persistent)"
+              value={durationSec}
+              onChange={(e) => setDurationSec(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-full bg-[#182138] border border-[#232f4c] rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
+            />
+            <p className="text-[11px] text-slate-500 font-sans mt-1">
+              Automatically remove this fault and restore the socket after elapsed seconds.
+            </p>
           </div>
 
           {/* Dynamic Parameter Fields */}
@@ -302,6 +339,56 @@ export const ToxicModal: React.FC<ToxicModalProps> = ({ proxy, onClose, onSave }
                   onChange={(e) => setLimitBytes(Number(e.target.value))}
                   className="w-full bg-[#111726] border border-[#232f4c] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
                 />
+              </div>
+            )}
+
+            {type === 'circuit_breaker_probe' && (
+              <div className="space-y-3 font-mono text-xs">
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1">Trip After Errors</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={tripErrors}
+                      onChange={(e) => setTripErrors(Number(e.target.value))}
+                      className="w-full bg-[#111726] border border-[#232f4c] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Cooldown (ms)</label>
+                    <input
+                      type="number"
+                      min="100"
+                      value={cooldownMs}
+                      onChange={(e) => setCooldownMs(Number(e.target.value))}
+                      className="w-full bg-[#111726] border border-[#232f4c] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Probe Successes</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={probeSuccesses}
+                      onChange={(e) => setProbeSuccesses(Number(e.target.value))}
+                      className="w-full bg-[#111726] border border-[#232f4c] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Failure Status Code</label>
+                  <select
+                    value={httpStatus}
+                    onChange={(e) => setHttpStatus(Number(e.target.value))}
+                    className="w-full bg-[#111726] border border-[#232f4c] rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value={503}>503 Service Unavailable</option>
+                    <option value={502}>502 Bad Gateway</option>
+                    <option value={504}>504 Gateway Timeout</option>
+                    <option value={500}>500 Internal Server Error</option>
+                  </select>
+                </div>
               </div>
             )}
 

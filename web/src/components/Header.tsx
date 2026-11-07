@@ -1,5 +1,5 @@
-import React from 'react';
-import { Activity, Plus, RotateCcw, Zap, Radio } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Activity, Plus, RotateCcw, Zap, Radio, Download, Upload } from 'lucide-react';
 
 interface HeaderProps {
   connected: boolean;
@@ -8,6 +8,8 @@ interface HeaderProps {
   totalFaults: number;
   onReset: () => void;
   onNewProxy: () => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
   isResetting: boolean;
 }
 
@@ -18,8 +20,18 @@ export const Header: React.FC<HeaderProps> = ({
   totalFaults,
   onReset,
   onNewProxy,
+  onExport,
+  onImport,
   isResetting,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onImport(e.target.files[0]);
+      e.target.value = '';
+    }
+  };
   return (
     <header className="border-b border-[#232f4c] bg-[#111726]/90 backdrop-blur sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -64,7 +76,32 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {/* Hidden File Input for Import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          <button
+            onClick={onExport}
+            className="p-1.5 rounded-lg bg-[#182138] hover:bg-[#232f4c] text-slate-300 hover:text-white border border-[#232f4c] transition"
+            title="Export full chaos configuration to JSON"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-1.5 rounded-lg bg-[#182138] hover:bg-[#232f4c] text-slate-300 hover:text-white border border-[#232f4c] transition"
+            title="Import chaos configuration from JSON file"
+          >
+            <Upload className="h-3.5 w-3.5" />
+          </button>
+
           <button
             onClick={onReset}
             disabled={isResetting}

@@ -6,6 +6,8 @@ export interface Toxic {
   stream: StreamDirection;
   toxicity: number;
   attributes: Record<string, any>;
+  duration_ms?: number;
+  expires_at?: string;
 }
 
 export interface Stats {
@@ -20,6 +22,13 @@ export interface Stats {
   p99_latency_ms: number;
 }
 
+export interface TargetHealth {
+  status: 'healthy' | 'degraded' | 'down' | 'unknown';
+  rtt_ms: number;
+  error?: string;
+  last_ping: number;
+}
+
 export interface Proxy {
   name: string;
   listen: string;
@@ -27,6 +36,7 @@ export interface Proxy {
   enabled: boolean;
   toxics: Toxic[];
   stats?: Stats;
+  target_health?: TargetHealth;
 }
 
 export interface PresetDef {
@@ -45,6 +55,16 @@ export interface Preset {
   toxics: PresetDef[];
 }
 
+export interface SequenceStatus {
+  sequence_id: string;
+  proxy_name: string;
+  current_step: number;
+  total_steps: number;
+  step_name: string;
+  remaining_sec: number;
+  running: boolean;
+}
+
 export interface TelemetryPayload {
   timestamp: number;
   proxies: {
@@ -53,6 +73,19 @@ export interface TelemetryPayload {
     upstream: string;
     enabled: boolean;
     stats: Stats;
+    target_health?: TargetHealth;
     toxics: Toxic[];
   }[];
+  recent_frames?: {
+    id: string;
+    timestamp: string;
+    proxy_name: string;
+    direction: 'upstream' | 'downstream';
+    protocol: string;
+    summary: string;
+    bytes: number;
+    fault_injected?: string;
+    latency_ms: number;
+  }[];
+  sequence_status?: SequenceStatus;
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alexandrmotologa/faultcraft/internal/presets"
 	"github.com/alexandrmotologa/faultcraft/internal/proxy"
 	"github.com/alexandrmotologa/faultcraft/internal/telemetry"
 	"github.com/alexandrmotologa/faultcraft/internal/toxics"
@@ -108,24 +109,29 @@ func (b *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 type TelemetryPayload struct {
-	Timestamp int64            `json:"timestamp"`
-	Proxies   []ProxyTelemetry `json:"proxies"`
+	Timestamp      int64                   `json:"timestamp"`
+	Proxies        []ProxyTelemetry        `json:"proxies"`
+	RecentFrames   []telemetry.FrameRecord `json:"recent_frames"`
+	SequenceStatus presets.SequenceStatus  `json:"sequence_status"`
 }
 
 type ProxyTelemetry struct {
-	Name      string             `json:"name"`
-	Listen    string             `json:"listen"`
-	Upstream  string             `json:"upstream"`
-	Enabled   bool               `json:"enabled"`
-	Stats     telemetry.Snapshot `json:"stats"`
-	ToxicList []toxics.BaseToxic `json:"toxics"`
+	Name         string             `json:"name"`
+	Listen       string             `json:"listen"`
+	Upstream     string             `json:"upstream"`
+	Enabled      bool               `json:"enabled"`
+	Stats        telemetry.Snapshot `json:"stats"`
+	TargetHealth proxy.TargetHealth `json:"target_health"`
+	ToxicList    []toxics.BaseToxic `json:"toxics"`
 }
 
 func (b *SSEBroker) gatherTelemetry() []byte {
 	proxies := b.manager.List()
 	payload := TelemetryPayload{
-		Timestamp: time.Now().Unix(),
-		Proxies:   make([]ProxyTelemetry, 0, len(proxies)),
+		Timestamp:      time.Now().Unix(),
+		Proxies:        make([]ProxyTelemetry, 0, len(proxies)),
+		RecentFrames:   telemetry.GlobalInspector.GetRecent(20),
+		SequenceStatus: presets.GlobalRunner.GetStatus(),
 	}
 
 	for _, p := range proxies {
@@ -133,21 +139,24 @@ func (b *SSEBroker) gatherTelemetry() []byte {
 		baseToxics := make([]toxics.BaseToxic, 0, len(toxList))
 		for _, t := range toxList {
 			baseToxics = append(baseToxics, toxics.BaseToxic{
-				ToxicName: t.Name(),
-				ToxicType: t.Type(),
-				ToxicDir:  t.Stream(),
-				Prob:      t.Toxicity(),
-				Attrs:     t.Attributes(),
+				ToxicName:     t.Name(),
+				ToxicType:     t.Type(),
+				ToxicDir:      t.Stream(),
+				Prob:          t.Toxicity(),
+				Attrs:         t.Attributes(),
+				DurationMs:    t.Duration(),
+				ExpiresAtTime: t.ExpiresAt(),
 			})
 		}
 
 		payload.Proxies = append(payload.Proxies, ProxyTelemetry{
-			Name:      p.Name,
-			Listen:    p.Listen,
-			Upstream:  p.Upstream,
-			Enabled:   p.Enabled,
-			Stats:     p.Stats.Snapshot(),
-			ToxicList: baseToxics,
+			Name:         p.Name,
+			Listen:       p.Listen,
+			Upstream:     p.Upstream,
+			Enabled:      p.Enabled,
+			Stats:        p.Stats.Snapshot(),
+			TargetHealth: p.GetTargetHealth(),
+			ToxicList:    baseToxics,
 		})
 	}
 

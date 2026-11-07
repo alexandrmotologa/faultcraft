@@ -169,6 +169,67 @@ func TestProxyWithLatencyToxic(t *testing.T) {
 	}
 }
 
+func TestProxyHealthProber(t *testing.T) {
+	echoLn, echoAddr := startMockEchoServer(t)
+
+	p := NewProxy("test_prober", "127.0.0.1:0", echoAddr)
+	h := p.ProbeTarget()
+
+	if h.Status != "healthy" {
+		t.Errorf("expected healthy status for active upstream, got %s (err: %s)", h.Status, h.Error)
+	}
+	if h.RTTMs < 0 {
+		t.Errorf("expected non-negative RTT, got %f", h.RTTMs)
+	}
+
+	// Close upstream listener
+	_ = echoLn.Close()
+	time.Sleep(20 * time.Millisecond)
+
+	hDown := p.ProbeTarget()
+	if hDown.Status != "down" {
+		t.Errorf("expected down status for closed upstream, got %s", hDown.Status)
+	}
+	if hDown.Error == "" {
+		t.Errorf("expected error string when upstream is unreachable")
+	}
+}
+
+func TestProxyAutoHealToxic(t *testing.T) {
+	echoLn, echoAddr := startMockEchoServer(t)
+	defer echoLn.Close()
+
+	p := NewProxy("test_autoheal", "127.0.0.1:0", echoAddr)
+	if err := p.Start(); err != nil {
+		t.Fatalf("failed starting proxy: %v", err)
+	}
+	defer p.Stop()
+
+	// Toxic with 80ms duration
+	autoHealToxic, err := toxics.Create("short_delay", "latency", toxics.Downstream, 1.0, map[string]interface{}{
+		"latency":  50,
+		"duration": 80,
+	})
+	if err != nil {
+		t.Fatalf("failed creating toxic: %v", err)
+	}
+
+	if err := p.AddToxic(autoHealToxic); err != nil {
+		t.Fatalf("failed adding toxic: %v", err)
+	}
+
+	if _, exists := p.GetToxic("short_delay"); !exists {
+		t.Fatalf("expected toxic to exist initially")
+	}
+
+	// Wait for auto-heal
+	time.Sleep(120 * time.Millisecond)
+
+	if _, exists := p.GetToxic("short_delay"); exists {
+		t.Errorf("expected toxic to auto-heal and be removed after duration expired")
+	}
+}
+
 func TestProxyManagerLifecycle(t *testing.T) {
 	echoLn, echoAddr := startMockEchoServer(t)
 	defer echoLn.Close()
