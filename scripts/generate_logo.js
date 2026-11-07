@@ -1,0 +1,254 @@
+const fs = require('fs');
+const path = require('path');
+
+// Resolve @resvg/resvg-js from mtlg-site
+let Resvg;
+try {
+  Resvg = require('@resvg/resvg-js').Resvg;
+} catch (e) {
+  try {
+    Resvg = require('B:/workgit/mtlg-site/node_modules/@resvg/resvg-js').Resvg;
+  } catch (err) {
+    console.error('Could not load Resvg:', err);
+    process.exit(1);
+  }
+}
+
+function buildLogoSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="squircle-clip">
+      <rect x="24" y="24" width="976" height="976" rx="220" />
+    </clipPath>
+
+    <linearGradient id="cyan-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <linearGradient id="amber-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+
+    <linearGradient id="metal-sheen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+
+    <filter id="subtle-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity="0.14" />
+    </filter>
+  </defs>
+
+  <!-- Luxury White Squircle Container -->
+  <rect x="24" y="24" width="976" height="976" rx="220" fill="#ffffff" stroke="#e2e8f0" stroke-width="6" />
+
+  <g clip-path="url(#squircle-clip)">
+    <g transform="translate(512, 516)" filter="url(#subtle-shadow)">
+
+      <!-- Hexagonal Architectural Gateway -->
+      <polygon points="
+        0,-400
+        346,-200
+        346,200
+        0,400
+        -346,200
+        -346,-200
+      " fill="none" stroke="#0f172a" stroke-width="36" stroke-linejoin="round" />
+
+      <polygon points="
+        0,-364
+        315,-182
+        315,182
+        0,364
+        -315,182
+        -315,-182
+      " fill="none" stroke="#00f5ff" stroke-width="4" opacity="0.45" stroke-dasharray="16, 12" />
+
+      <!-- Watertight Solid Mascot Base Silhouette (Anti-Leak Rule) -->
+      <path d="
+        M 0,-215
+        C 50,-215 80,-255 120,-280
+        C 170,-310 240,-305 295,-245
+        C 345,-190 355,-100 325,-10
+        C 300,70 235,135 180,145
+        C 145,150 140,110 160,80
+        C 195,30 220,-30 205,-90
+        C 190,-140 140,-165 95,-130
+        L 95,-40
+        L 180,-20
+        L 110,65
+        L 90,160
+        L 45,245
+        L 0,270
+        L -45,245
+        L -90,160
+        L -110,65
+        L -180,-20
+        L -95,-40
+        L -95,-130
+        C -140,-165 -190,-140 -205,-90
+        C -220,-30 -195,30 -160,80
+        C -140,110 -145,150 -180,145
+        C -235,135 -300,70 -325,-10
+        C -355,-100 -345,-190 -295,-245
+        C -240,-305 -170,-310 -120,-280
+        C -80,-255 -50,-215 0,-215
+        Z
+      " fill="#090d16" />
+
+      <!-- === HORNS: LOW-POLY FACETS (LEFT & RIGHT) === -->
+      
+      <!-- Right Horn Segment 1 (Base Arch) -->
+      <polygon points="45,-180 115,-230 165,-275 110,-200 45,-140" fill="#475569" />
+      <polygon points="110,-200 165,-275 190,-250 140,-180" fill="#334155" />
+      
+      <!-- Left Horn Segment 1 (Base Arch) -->
+      <polygon points="-45,-180 -115,-230 -165,-275 -110,-200 -45,-140" fill="#64748b" />
+      <polygon points="-110,-200 -165,-275 -190,-250 -140,-180" fill="#475569" />
+
+      <!-- Right Horn Segment 2 (Upper Curve Crest) -->
+      <polygon points="165,-275 230,-295 260,-260 190,-250" fill="#64748b" />
+      <polygon points="190,-250 260,-260 270,-220 200,-210" fill="#475569" />
+
+      <!-- Left Horn Segment 2 (Upper Curve Crest) -->
+      <polygon points="-165,-275 -230,-295 -260,-260 -190,-250" fill="#94a3b8" />
+      <polygon points="-190,-250 -260,-260 -270,-220 -200,-210" fill="#64748b" />
+
+      <!-- Right Horn Segment 3 (Lateral Curl Sweep) -->
+      <polygon points="260,-260 315,-215 330,-150 270,-170" fill="#475569" />
+      <polygon points="270,-170 330,-150 325,-90 265,-105" fill="#334155" />
+
+      <!-- Left Horn Segment 3 (Lateral Curl Sweep) -->
+      <polygon points="-260,-260 -315,-215 -330,-150 -270,-170" fill="#64748b" />
+      <polygon points="-270,-170 -330,-150 -325,-90 -265,-105" fill="#475569" />
+
+      <!-- Right Horn Segment 4 (Downward Curl) -->
+      <polygon points="325,-90 320,-20 265,-30 265,-105" fill="#334155" />
+      <polygon points="320,-20 295,50 245,30 265,-30" fill="#1e293b" />
+
+      <!-- Left Horn Segment 4 (Downward Curl) -->
+      <polygon points="-325,-90 -320,-20 -265,-30 -265,-105" fill="#475569" />
+      <polygon points="-320,-20 -295,50 -245,30 -265,-30" fill="#334155" />
+
+      <!-- Right Horn Segment 5 (Terminal Inward Hook & Tip) -->
+      <polygon points="295,50 250,115 210,95 245,30" fill="#1e293b" />
+      <polygon points="250,115 175,130 195,85 210,95" fill="#0f172a" />
+      <polygon points="175,130 155,100 195,85" fill="#00f5ff" opacity="0.8" />
+
+      <!-- Left Horn Segment 5 (Terminal Inward Hook & Tip) -->
+      <polygon points="-295,50 -250,115 -210,95 -245,30" fill="#334155" />
+      <polygon points="-250,115 -175,130 -195,85 -210,95" fill="#1e293b" />
+      <polygon points="-175,130 -155,100 -195,85" fill="#00f5ff" opacity="0.8" />
+
+      <!-- === HORNS CYBER MATRIX TRACE GROOVES === -->
+      <path d="M 165,-275 L 260,-260 L 330,-150 L 320,-20 L 250,115" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.75" />
+      <path d="M -165,-275 L -260,-260 L -330,-150 L -320,-20 L -250,115" fill="none" stroke="#00f5ff" stroke-width="3" opacity="0.75" />
+
+      <!-- === RAM SKULL & CRANIAL ARMOR === -->
+      <!-- Crown Bridge -->
+      <polygon points="0,-185 55,-155 0,-125 -55,-155" fill="#64748b" />
+      <polygon points="0,-185 45,-140 0,-150" fill="#94a3b8" />
+      <polygon points="0,-185 -45,-140 0,-150" fill="#cbd5e1" />
+
+      <!-- Upper Forehead Strike Shield (Chaos Resilient Strike Plate) -->
+      <polygon points="0,-150 45,-140 38,-70 0,-85" fill="#334155" />
+      <polygon points="0,-150 -45,-140 -38,-70 0,-85" fill="#475569" />
+
+      <!-- Forehead Center Diamond Node -->
+      <polygon points="0,-85 38,-70 0,-10 -38,-70" fill="#1e293b" />
+      <polygon points="0,-65 24,-52 0,-15 -24,-52" fill="url(#cyan-glow)" />
+
+      <!-- Brow Armor & Cranial Ridge -->
+      <polygon points="45,-140 85,-115 75,-55 38,-70" fill="#1e293b" />
+      <polygon points="-45,-140 -85,-115 -75,-55 -38,-70" fill="#334155" />
+
+      <!-- Temple Facets -->
+      <polygon points="85,-115 130,-90 120,-35 75,-55" fill="#0f172a" />
+      <polygon points="-85,-115 -130,-90 -120,-35 -75,-55" fill="#1e293b" />
+
+      <!-- Ears (Horizontal Streamlined) -->
+      <polygon points="120,-35 185,-20 135,15 90,0" fill="#1e293b" />
+      <polygon points="120,-35 155,-10 135,15" fill="#00f5ff" opacity="0.6" />
+      <polygon points="-120,-35 -185,-20 -135,15 -90,0" fill="#334155" />
+      <polygon points="-120,-35 -155,-10 -135,15" fill="#00f5ff" opacity="0.6" />
+
+      <!-- Cheekbone & Orbital Frame -->
+      <polygon points="75,-55 110,-20 70,30 35,0" fill="#1e293b" />
+      <polygon points="-75,-55 -110,-20 -70,30 -35,0" fill="#334155" />
+
+      <!-- === PREDATORY / ALERT RAM OPTICS (EYES) === -->
+      <!-- Sharp upward-canted almond eye sockets -->
+      <polygon points="38,-35 72,-30 65,-12 35,-15" fill="#090d16" />
+      <polygon points="42,-32 68,-28 62,-16 39,-18" fill="url(#cyan-glow)" />
+      <!-- Pupil / Iris Slit -->
+      <polygon points="51,-31 57,-29 55,-17 50,-19" fill="#ffffff" />
+
+      <!-- Left Eye -->
+      <polygon points="-38,-35 -72,-30 -65,-12 -35,-15" fill="#090d16" />
+      <polygon points="-42,-32 -68,-28 -62,-16 -39,-18" fill="url(#cyan-glow)" />
+      <polygon points="-51,-31 -57,-29 -55,-17 -50,-19" fill="#ffffff" />
+
+      <!-- === SNOUT / MUZZLE (LOW-POLY TITANIUM SLATE, NO BUCK-TEETH) === -->
+      <!-- Bridge of Nose -->
+      <polygon points="0,-10 32,5 25,65 0,60" fill="#1e293b" />
+      <polygon points="0,-10 -32,5 -25,65 0,60" fill="#334155" />
+
+      <!-- Upper Snout Lateral Facets -->
+      <polygon points="32,5 65,30 50,85 25,65" fill="#0f172a" />
+      <polygon points="-32,5 -65,30 -50,85 -25,65" fill="#1e293b" />
+
+      <!-- Lower Muzzle & Whisker Flanges -->
+      <polygon points="0,60 25,65 30,120 0,130" fill="#334155" />
+      <polygon points="0,60 -25,65 -30,120 0,130" fill="#475569" />
+
+      <!-- Nose Tip Plate (Dark Obsidian Shield) -->
+      <polygon points="0,95 18,105 0,125 -18,105" fill="#090d16" />
+      <polygon points="0,98 12,106 0,120 -12,106" fill="#00f5ff" opacity="0.7" />
+
+      <!-- Chin / Jaw Armor Plate -->
+      <polygon points="0,130 25,125 15,175 0,185" fill="#1e293b" />
+      <polygon points="0,130 -25,125 -15,175 0,185" fill="#334155" />
+
+      <!-- Outer Jaw Plates -->
+      <polygon points="25,125 50,85 55,140 15,175" fill="#0f172a" />
+      <polygon points="-25,125 -50,85 -55,140 -15,175" fill="#1e293b" />
+
+      <!-- === CHEST ARMOR & NETWORK FAULT INJECTION CORNER PLATES === -->
+      <polygon points="0,185 40,210 0,265 -40,210" fill="#0f172a" />
+      <polygon points="0,185 30,205 0,245" fill="#00f5ff" opacity="0.35" />
+      <polygon points="15,175 55,140 75,200 40,210" fill="#1e293b" />
+      <polygon points="-15,175 -55,140 -75,200 -40,210" fill="#334155" />
+
+    </g>
+  </g>
+</svg>`;
+}
+
+async function renderLogo() {
+  const outputDir = path.join(__dirname, '..', 'docs', 'images');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const svg = buildLogoSvg();
+  const svgPath = path.join(outputDir, 'logo.svg');
+  const pngPath = path.join(outputDir, 'logo.png');
+
+  fs.writeFileSync(svgPath, svg, 'utf8');
+  console.log('✓ Wrote docs/images/logo.svg');
+
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: 'width', value: 1024 }
+  });
+  const pngBuffer = resvg.render().asPng();
+  fs.writeFileSync(pngPath, pngBuffer);
+  console.log('✓ Wrote docs/images/logo.png at 1024x1024');
+}
+
+renderLogo().catch(err => {
+  console.error('Error generating logo:', err);
+  process.exit(1);
+});
