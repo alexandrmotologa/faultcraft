@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/components/cliexportmodal.tsx","./src/components/header.tsx","./src/components/newproxymodal.tsx","./src/components/presetbar.tsx","./src/components/proxycard.tsx","./src/components/toxicmodal.tsx","./src/components/trafficvisualizer.tsx","./src/services/api.ts"],"version":"5.9.3"}

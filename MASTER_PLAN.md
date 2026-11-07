@@ -210,41 +210,41 @@ B:\workgit\faultcraft\
 ## 7. Implementation Roadmap
 
 ### Phase 1: High-Performance TCP Streaming Core & Statistics
-- [ ] Initialize Go module `github.com/alexandrmotologa/faultcraft`.
-- [ ] Implement `internal/proxy/proxy.go` with high-concurrency TCP listener, bidirectional piping, and graceful teardown.
-- [ ] Implement `internal/proxy/connection.go` with zero-allocation buffer pools (`sync.Pool`).
-- [ ] Implement `internal/proxy/stats.go` tracking atomic byte counters, active sockets, and latency metrics.
-- [ ] Build standalone mock echo/HTTP server in `scripts/demo_upstream.go` for rapid integration tests.
+- [x] Initialize Go module `github.com/alexandrmotologa/faultcraft`.
+- [x] Implement `internal/proxy/proxy.go` with high-concurrency TCP listener, bidirectional piping, and graceful teardown.
+- [x] Implement `internal/proxy/connection.go` with zero-allocation buffer pools (`sync.Pool`).
+- [x] Implement `internal/telemetry/stats.go` tracking atomic byte counters, active sockets, and latency metrics.
+- [x] Build standalone mock echo/HTTP server in `scripts/demo_upstream.go` for rapid integration tests.
 
 ### Phase 2: Modular Toxic Engine & Network Fault Injections
-- [ ] Implement `Toxic` interface and bidirectional pipeline runner in `internal/toxics/toxic.go`.
-- [ ] Implement `latency.go` with Box-Muller Gaussian normal distribution and jitter correlation.
-- [ ] Implement `bandwidth.go` using token-bucket rate limiting with microsecond granularity.
-- [ ] Implement `slicer.go` for TCP buffer fragmentation.
-- [ ] Implement `timeout.go`, `hang.go`, `reset.go` (TCP RST flag), and `limit_data.go`.
-- [ ] Implement `http_error.go` for HTTP/1.1 response status code interception and rewriting.
-- [ ] Implement `corrupt.go` for probabilistic payload alteration.
-- [ ] Write comprehensive unit and integration tests verifying each toxic under real network load.
+- [x] Implement `Toxic` interface and bidirectional pipeline runner in `internal/toxics/toxic.go`.
+- [x] Implement `latency.go` with Box-Muller Gaussian normal distribution and jitter correlation.
+- [x] Implement `bandwidth.go` using token-bucket rate limiting with microsecond granularity.
+- [x] Implement `slicer.go` for TCP buffer fragmentation.
+- [x] Implement `timeout.go`, `hang.go`, `reset.go` (TCP RST flag), and `limit_data.go`.
+- [x] Implement `http_error.go` for HTTP/1.1 response status code interception and rewriting.
+- [x] Implement `corrupt.go` for probabilistic payload alteration.
+- [x] Write comprehensive unit and integration tests verifying each toxic under real network load.
 
 ### Phase 3: Toxiproxy v2 API, Presets & CI/CD Gating
-- [ ] Implement Toxiproxy v2-compatible REST router in `internal/api/router.go`.
-- [ ] Implement `/proxies` and `/proxies/{name}/toxics` CRUD endpoints matching standard JSON schemas.
-- [ ] Implement SSE telemetry stream at `/api/v1/events` for real-time frontend updates.
-- [ ] Implement preset management and scenario runner (`/api/v1/presets`, `/api/v1/scenarios`).
-- [ ] Implement `faultcraft gate` CLI command for CI/CD test runners with latency/error SLO checks.
+- [x] Implement Toxiproxy v2-compatible REST router in `internal/api/router.go`.
+- [x] Implement `/proxies` and `/proxies/{name}/toxics` CRUD endpoints matching standard JSON schemas.
+- [x] Implement SSE telemetry stream at `/api/v1/events` for real-time frontend updates.
+- [x] Implement preset management (`/api/v1/presets`, `/api/v1/presets/apply`).
+- [x] Implement `faultcraft gate` CLI command for CI/CD test runners with latency/error SLO checks.
 
 ### Phase 4: Embedded React 19 Interactive Chaos Cockpit
-- [ ] Scaffold Vite + React 19 + TypeScript app in `web/`.
-- [ ] Configure Tailwind CSS and Lucide icons with dark engineering visual identity.
-- [ ] Build `ProxyList`, `ProxyCard`, and `ToxicList` components with live toggle controls.
-- [ ] Build `ToxicModal` for adjusting delay, jitter, rate limits, and error rates.
-- [ ] Build `TrafficChart` visualizing live throughput and active connection counts.
-- [ ] Build `PresetBar` for one-click chaos activation.
-- [ ] Build `CliExportModal` providing instant `curl` and `faultcraft` CLI commands.
-- [ ] Integrate React build artifacts into Go executable with `//go:embed`.
+- [x] Scaffold Vite + React 19 + TypeScript app in `web/`.
+- [x] Configure Tailwind CSS and Lucide icons with dark engineering visual identity.
+- [x] Build `ProxyCard` and toxic pipeline components with live toggle controls.
+- [x] Build `ToxicModal` for adjusting delay, jitter, rate limits, and error rates.
+- [x] Build `TrafficVisualizer` visualizing live throughput and active connection counts.
+- [x] Build `PresetBar` for one-click chaos activation.
+- [x] Build `CliExportModal` providing instant `curl`, Go, Python, and `faultcraft` CLI commands.
+- [x] Integrate React build artifacts into Go executable with `//go:embed`.
 
 ### Phase 5: Verification, Documentation & Release
-- [ ] Write end-to-end integration tests in Go exercising the full stack (proxy, toxics, API, gating).
-- [ ] Verify zero socket leaks under sustained concurrent connections.
-- [ ] Write comprehensive documentation in `docs/` and humanized `README.md`.
-- [ ] Build cross-platform binaries (Linux, macOS, Windows) and Dockerfile.
+- [x] Write end-to-end integration tests in Go exercising the full stack (proxy, toxics, API, gating).
+- [x] Verify zero socket leaks under sustained concurrent connections.
+- [x] Write comprehensive documentation in `docs/` and humanized `README.md`.
+- [x] Build cross-platform binaries (Linux, macOS, Windows) and Dockerfile.

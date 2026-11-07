@@ -1,0 +1,58 @@
+export type StreamDirection = 'upstream' | 'downstream';
+
+export interface Toxic {
+  name: string;
+  type: string;
+  stream: StreamDirection;
+  toxicity: number;
+  attributes: Record<string, any>;
+}
+
+export interface Stats {
+  active_connections: number;
+  total_connections: number;
+  bytes_upstream: number;
+  bytes_downstream: number;
+  error_count: number;
+  fault_count: number;
+  p50_latency_ms: number;
+  p90_latency_ms: number;
+  p99_latency_ms: number;
+}
+
+export interface Proxy {
+  name: string;
+  listen: string;
+  upstream: string;
+  enabled: boolean;
+  toxics: Toxic[];
+  stats?: Stats;
+}
+
+export interface PresetDef {
+  name: string;
+  type: string;
+  stream: StreamDirection;
+  toxicity: number;
+  attributes: Record<string, any>;
+}
+
+export interface Preset {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  toxics: PresetDef[];
+}
+
+export interface TelemetryPayload {
+  timestamp: number;
+  proxies: {
+    name: string;
+    listen: string;
+    upstream: string;
+    enabled: boolean;
+    stats: Stats;
+    toxics: Toxic[];
+  }[];
+}
