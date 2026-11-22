@@ -21,11 +21,22 @@ import (
 )
 
 var (
-	Version   = "0.1.0"
-	GitCommit = "dev"
+	Version   = "1.0.0"
+	GitCommit = "release"
 )
 
 func main() {
+	for _, arg := range os.Args[1:] {
+		if arg == "version" || arg == "--version" || arg == "-v" || arg == "-V" {
+			fmt.Printf("faultcraft v%s\n", Version)
+			return
+		}
+		if arg == "help" || arg == "--help" || arg == "-h" {
+			printUsage()
+			return
+		}
+	}
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
@@ -45,8 +56,6 @@ func main() {
 		runExport(os.Args[2:])
 	case "import":
 		runImport(os.Args[2:])
-	case "version", "--version", "-v":
-		fmt.Printf("faultcraft %s (%s)\n", Version, GitCommit)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", cmd)
 		printUsage()

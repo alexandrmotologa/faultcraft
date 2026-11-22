@@ -5,6 +5,8 @@
 <h1 align="center">faultcraft</h1>
 
 <p align="center">
+  <a href="https://github.com/alexandrmotologa/faultcraft/actions/workflows/ci.yml"><img src="https://github.com/alexandrmotologa/faultcraft/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/alexandrmotologa/faultcraft/releases"><img src="https://img.shields.io/badge/version-v1.0.0-6366f1.svg?style=flat-square" alt="Version" /></a>
   <img src="https://img.shields.io/badge/go-1.23+-00ADD8.svg?style=flat-square&logo=go" alt="Go 1.23+" />
   <img src="https://img.shields.io/badge/react-19-61DAFB.svg?style=flat-square&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/toxiproxy-v2_compatible-059669.svg?style=flat-square" alt="Toxiproxy v2 Compatible" />
